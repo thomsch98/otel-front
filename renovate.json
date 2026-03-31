@@ -49,7 +49,9 @@
     }
   ],
   "npm": {
-    "fileMatch": ["^frontend/package\\.json$"]
+    "managerFilePatterns": [
+      "/^frontend/package\.json$/"
+    ]
   },
   "ignorePaths": ["**/node_modules/**"]
 }
