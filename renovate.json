@@ -51,7 +51,7 @@
   ],
   "npm": {
     "managerFilePatterns": [
-      "/^frontend/package\.json$/"
+      "/^frontend/package\\.json$/"
     ]
   },
   "ignorePaths": ["**/node_modules/**"]
