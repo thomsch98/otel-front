@@ -1,6 +1,9 @@
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+
 export default [
   {
-    ignorePatterns: ['dist', 'node_modules'],
+    ignores: ['dist', 'node_modules'],
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -9,8 +12,8 @@ export default [
       sourceType: 'module',
     },
     plugins: {
-      'react-hooks': require('eslint-plugin-react-hooks'),
-      'react-refresh': require('eslint-plugin-react-refresh'),
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
     },
     rules: {
       'react-refresh/only-export-components': [
