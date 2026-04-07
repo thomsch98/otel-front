@@ -1,6 +1,6 @@
 module github.com/mesaglio/otel-front
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/duckdb/duckdb-go/v2 v2.10501.0
