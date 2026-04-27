@@ -148,3 +148,32 @@ func (s *Store) Migrate(ctx context.Context) error {
 	s.logger.Info("Database migrations completed successfully")
 	return nil
 }
+
+// ResetData removes all collected telemetry data.
+func (s *Store) ResetData(ctx context.Context) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin reset transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	statements := []string{
+		"DELETE FROM spans",
+		"DELETE FROM traces",
+		"DELETE FROM logs",
+		"DELETE FROM metrics",
+	}
+
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("failed to execute reset statement %q: %w", statement, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit reset transaction: %w", err)
+	}
+
+	s.logger.Info("Telemetry data reset completed")
+	return nil
+}

@@ -93,6 +93,11 @@ class ApiClient {
     })
     return response.data
   }
+
+  // Reset telemetry data
+  async resetData(): Promise<void> {
+    await this.client.post('/reset')
+  }
 }
 
 export const apiClient = new ApiClient()

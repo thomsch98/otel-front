@@ -19,6 +19,7 @@ func SetupRouter(store *store.Store, logger *zap.Logger) *gin.Engine {
 	tracesHandler := handlers.NewTracesHandler(store, logger)
 	logsHandler := handlers.NewLogsHandler(store, logger)
 	metricsHandler := handlers.NewMetricsHandler(store, logger)
+	resetHandler := handlers.NewResetHandler(store, logger)
 
 	// Health check
 	router.GET("/health", healthHandler.HandleHealth)
@@ -42,6 +43,9 @@ func SetupRouter(store *store.Store, logger *zap.Logger) *gin.Engine {
 
 		// Services
 		api.GET("/services", metricsHandler.GetServices)
+
+		// Reset data
+		api.POST("/reset", resetHandler.ResetData)
 	}
 
 	return router

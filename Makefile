@@ -68,3 +68,6 @@ release-snapshot: frontend-build ## Run GoReleaser with snapshot flag
 	@echo "Running GoReleaser"
 	@goreleaser release --snapshot --clean --skip=publish
 	@echo "✅ Snapshot complete in dist/"
+
+docker: ## Build Docker image
+	docker build -t otel-front:localhost .

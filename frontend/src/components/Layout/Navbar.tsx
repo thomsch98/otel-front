@@ -1,9 +1,28 @@
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { apiClient } from '../../services/api'
 
-export function Navbar() {
+interface NavbarProps {
+  onResetComplete?: () => void
+}
+
+export function Navbar({ onResetComplete }: NavbarProps) {
   const location = useLocation()
+  const [isResetting, setIsResetting] = useState(false)
 
   const isActive = (path: string) => location.pathname === path
+
+  const handleReset = async () => {
+    setIsResetting(true)
+    try {
+      await apiClient.resetData()
+      onResetComplete?.()
+    } catch (error) {
+      console.error('Failed to reset telemetry data:', error)
+    } finally {
+      setIsResetting(false)
+    }
+  }
 
   return (
     <nav className="bg-gray-800 text-white shadow-lg">
@@ -57,6 +76,16 @@ export function Navbar() {
                 Metrics
               </Link>
             </div>
+          </div>
+          <div className="hidden sm:flex sm:items-center">
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={isResetting}
+              className="inline-flex items-center rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-200 hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isResetting ? 'Resetting...' : 'Reset'}
+            </button>
           </div>
         </div>
       </div>
