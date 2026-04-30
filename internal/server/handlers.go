@@ -203,7 +203,7 @@ func (s *Server) handleAggregateMetrics(c *gin.Context) {
 
 // handleGetServices returns a list of unique services
 func (s *Server) handleGetServices(c *gin.Context) {
-	services, err := s.store.Traces.GetServices(c.Request.Context())
+	services, err := s.store.GetServices(c.Request.Context())
 	if err != nil {
 		s.logger.Error("Failed to get services", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve services"})

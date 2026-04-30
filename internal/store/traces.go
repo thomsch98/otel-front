@@ -157,49 +157,55 @@ func (ts *TracesStore) insertSpan(ctx context.Context, tx *sql.Tx, span *Span) e
 // GetTraces retrieves traces with optional filters
 func (ts *TracesStore) GetTraces(ctx context.Context, filters TraceFilters) ([]Trace, error) {
 	query := `
-		SELECT trace_id, service_name, operation_name, start_time, end_time,
-			duration_ms, span_count, error_count, status_code, attributes
-		FROM traces
+		SELECT t.trace_id, t.service_name, t.operation_name, t.start_time, t.end_time,
+			t.duration_ms, t.span_count, t.error_count, t.status_code, t.attributes
+		FROM traces t
 		WHERE 1=1
 	`
 	args := []interface{}{}
 
 	if filters.ServiceName != "" {
-		query += " AND service_name = ?"
-		args = append(args, filters.ServiceName)
+		query += ` AND (
+			t.service_name = ?
+			OR EXISTS (
+				SELECT 1 FROM spans s
+				WHERE s.trace_id = t.trace_id AND s.service_name = ?
+			)
+		)`
+		args = append(args, filters.ServiceName, filters.ServiceName)
 	}
 
 	if filters.MinDuration > 0 {
-		query += " AND duration_ms >= ?"
+		query += " AND t.duration_ms >= ?"
 		args = append(args, filters.MinDuration)
 	}
 
 	if filters.MaxDuration > 0 {
-		query += " AND duration_ms <= ?"
+		query += " AND t.duration_ms <= ?"
 		args = append(args, filters.MaxDuration)
 	}
 
 	if filters.HasErrors {
-		query += " AND error_count > 0"
+		query += " AND t.error_count > 0"
 	}
 
 	if filters.Search != "" {
-		query += " AND (operation_name LIKE ? OR trace_id LIKE ?)"
+		query += " AND (t.operation_name LIKE ? OR t.trace_id LIKE ?)"
 		searchPattern := "%" + filters.Search + "%"
 		args = append(args, searchPattern, searchPattern)
 	}
 
 	if !filters.StartTime.IsZero() {
-		query += " AND start_time >= ?"
+		query += " AND t.start_time >= ?"
 		args = append(args, filters.StartTime)
 	}
 
 	if !filters.EndTime.IsZero() {
-		query += " AND start_time <= ?"
+		query += " AND t.start_time <= ?"
 		args = append(args, filters.EndTime)
 	}
 
-	query += " ORDER BY start_time DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY t.start_time DESC LIMIT ? OFFSET ?"
 	args = append(args, filters.Limit, filters.Offset)
 
 	rows, err := ts.db.QueryContext(ctx, query, args...)
@@ -348,7 +354,13 @@ func (ts *TracesStore) getSpansByTraceID(ctx context.Context, traceID string) ([
 // GetServices returns a list of unique service names
 func (ts *TracesStore) GetServices(ctx context.Context) ([]string, error) {
 	rows, err := ts.db.QueryContext(ctx, `
-		SELECT DISTINCT service_name FROM traces ORDER BY service_name
+		SELECT service_name
+		FROM (
+			SELECT service_name FROM traces WHERE trim(service_name) <> ''
+			UNION
+			SELECT service_name FROM spans WHERE trim(service_name) <> ''
+		) services
+		ORDER BY service_name
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query services: %w", err)

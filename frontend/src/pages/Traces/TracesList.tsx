@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeftRight } from 'lucide-react'
 import { useTraces } from '../../hooks/useTraces'
+import { useServices } from '../../hooks/useServices'
 import { TraceFiltersBar } from '../../components/Traces/TraceFiltersBar'
 import { TraceComparison } from '../../components/Traces/TraceComparison'
 import type { TraceFilters, TraceDetail } from '../../types/api'
@@ -11,17 +12,11 @@ import { formatDuration } from '../../utils/format'
 export function TracesList() {
   const [filters, setFilters] = useState<TraceFilters>({ limit: 100 })
   const { traces, loading, error } = useTraces(filters)
+  const { services } = useServices()
   const [selectedTraces, setSelectedTraces] = useState<string[]>([])
   const [showComparison, setShowComparison] = useState(false)
-  const [services, setServices] = useState<string[]>([])
   const [selectedTraceDetails, setSelectedTraceDetails] = useState<TraceDetail[]>([])
 
-  useEffect(() => {
-    apiClient
-      .getServices()
-      .then((data) => setServices(data.filter((service) => service.trim().length > 0)))
-      .catch((err: Error) => console.error('Failed to fetch services:', err))
-  }, [])
 
   // Fetch full trace details when comparison is triggered
   useEffect(() => {

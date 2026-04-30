@@ -106,7 +106,7 @@ func (h *MetricsHandler) AggregateMetrics(c *gin.Context) {
 
 // GetServices returns a list of unique services
 func (h *MetricsHandler) GetServices(c *gin.Context) {
-	services, err := h.store.Traces.GetServices(c.Request.Context())
+	services, err := h.store.GetServices(c.Request.Context())
 	if err != nil {
 		h.logger.Error("Failed to get services", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve services"})

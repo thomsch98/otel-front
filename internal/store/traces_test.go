@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -278,6 +279,147 @@ func TestGetServices(t *testing.T) {
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 services, got %d", len(results))
+	}
+}
+
+func TestStoreGetServicesIncludesAllSignals(t *testing.T) {
+	store := setupTestStore(t)
+	defer store.Close()
+
+	ctx := context.Background()
+	now := time.Now()
+
+	trace := &Trace{
+		TraceID:       "trace-services-all-signals",
+		ServiceName:   "trace-root-service",
+		OperationName: "GET /checkout",
+		StartTime:     now.Add(-10 * time.Millisecond),
+		EndTime:       now,
+		DurationMs:    10,
+		SpanCount:     2,
+		Spans: []Span{
+			{
+				SpanID:        "trace-root-span",
+				TraceID:       "trace-services-all-signals",
+				ServiceName:   "trace-root-service",
+				OperationName: "GET /checkout",
+				SpanKind:      "server",
+				StartTime:     now.Add(-10 * time.Millisecond),
+				EndTime:       now,
+				DurationMs:    10,
+				StatusCode:    0,
+			},
+			{
+				SpanID:        "trace-child-span",
+				TraceID:       "trace-services-all-signals",
+				ParentSpanID:  strPtr("trace-root-span"),
+				ServiceName:   "trace-span-service",
+				OperationName: "POST payment",
+				SpanKind:      "client",
+				StartTime:     now.Add(-8 * time.Millisecond),
+				EndTime:       now.Add(-2 * time.Millisecond),
+				DurationMs:    6,
+				StatusCode:    0,
+			},
+		},
+	}
+
+	if err := store.Traces.InsertTrace(ctx, trace); err != nil {
+		t.Fatalf("Failed to insert trace: %v", err)
+	}
+
+	if err := store.Logs.InsertLog(ctx, &LogRecord{
+		Timestamp:      now,
+		SeverityText:   "INFO",
+		SeverityNumber: 9,
+		Body:           "log entry",
+		ServiceName:    "log-service",
+	}); err != nil {
+		t.Fatalf("Failed to insert log: %v", err)
+	}
+
+	metricValue := 42.0
+	if err := store.Metrics.InsertMetric(ctx, &MetricRecord{
+		Timestamp:   now,
+		MetricName:  "http.server.duration",
+		MetricType:  "gauge",
+		ServiceName: "metric-service",
+		Value:       &metricValue,
+	}); err != nil {
+		t.Fatalf("Failed to insert metric: %v", err)
+	}
+
+	results, err := store.GetServices(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get services: %v", err)
+	}
+
+	expected := []string{"log-service", "metric-service", "trace-root-service", "trace-span-service"}
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("Expected services %v, got %v", expected, results)
+	}
+}
+
+func TestGetTracesWithSpanServiceFilter(t *testing.T) {
+	store := setupTestStore(t)
+	defer store.Close()
+
+	ctx := context.Background()
+	now := time.Now()
+
+	trace := &Trace{
+		TraceID:       "trace-span-service-filter",
+		ServiceName:   "frontend-service",
+		OperationName: "GET /orders",
+		StartTime:     now.Add(-20 * time.Millisecond),
+		EndTime:       now,
+		DurationMs:    20,
+		SpanCount:     2,
+		Spans: []Span{
+			{
+				SpanID:        "orders-root-span",
+				TraceID:       "trace-span-service-filter",
+				ServiceName:   "frontend-service",
+				OperationName: "GET /orders",
+				SpanKind:      "server",
+				StartTime:     now.Add(-20 * time.Millisecond),
+				EndTime:       now,
+				DurationMs:    20,
+				StatusCode:    0,
+			},
+			{
+				SpanID:        "orders-db-span",
+				TraceID:       "trace-span-service-filter",
+				ParentSpanID:  strPtr("orders-root-span"),
+				ServiceName:   "payments-service",
+				OperationName: "SELECT payments",
+				SpanKind:      "client",
+				StartTime:     now.Add(-15 * time.Millisecond),
+				EndTime:       now.Add(-5 * time.Millisecond),
+				DurationMs:    10,
+				StatusCode:    0,
+			},
+		},
+	}
+
+	if err := store.Traces.InsertTrace(ctx, trace); err != nil {
+		t.Fatalf("Failed to insert trace: %v", err)
+	}
+
+	results, err := store.Traces.GetTraces(ctx, TraceFilters{
+		ServiceName: "payments-service",
+		Limit:       10,
+	})
+	if err != nil {
+		t.Fatalf("Failed to get traces: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 trace, got %d", len(results))
+	}
+
+	if results[0].TraceID != "trace-span-service-filter" {
+		t.Errorf("Expected trace-span-service-filter, got %s", results[0].TraceID)
 	}
 }
 

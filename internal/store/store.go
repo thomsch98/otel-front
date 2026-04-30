@@ -177,3 +177,36 @@ func (s *Store) ResetData(ctx context.Context) error {
 	s.logger.Info("Telemetry data reset completed")
 	return nil
 }
+
+// GetServices returns the distinct set of retained services across all telemetry tables.
+func (s *Store) GetServices(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT service_name
+		FROM (
+			SELECT service_name FROM traces WHERE trim(service_name) <> ''
+			UNION
+			SELECT service_name FROM spans WHERE trim(service_name) <> ''
+			UNION
+			SELECT service_name FROM logs WHERE trim(service_name) <> ''
+			UNION
+			SELECT service_name FROM metrics WHERE trim(service_name) <> ''
+		) services
+		ORDER BY service_name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query services: %w", err)
+	}
+	defer rows.Close()
+
+	services := []string{}
+	for rows.Next() {
+		var service string
+		if err := rows.Scan(&service); err != nil {
+			return nil, fmt.Errorf("failed to scan service: %w", err)
+		}
+		services = append(services, service)
+	}
+
+	return services, nil
+}
+
